@@ -12,7 +12,7 @@ you will also need the following packages from Bioconductor  ```GenomicRanges```
 Use the following code toimport the bedfiles in 'ExampleData':
 ```
 CEBPGK562_Experiment1_Rep1=import("PathToExampleData/CEBPGK562_Experiment1_Rep1.bed.gz",format="narrowPeak")
-CEBPGK562_Experiment1_Rep1=import("PathToExampleData/CEBPGK562_Experiment1_Rep1.bed.gz",format="narrowPeak")
+CEBPGK562_Experiment1_Rep2=import("PathToExampleData/CEBPGK562_Experiment1_Rep2.bed.gz",format="narrowPeak")
 CEBPGK562_Experiment2_Rep1=import("PathToExampleData/CEBPGK562_Experiment2_Rep1.bed.gz",format="narrowPeak")
 CEBPGK562_Experiment2_Rep2=import("PathToExampleData/CEBPGK562_Experiment2_Rep2.bed.gz",format="narrowPeak")
 ```
