@@ -25,7 +25,7 @@ Chrom=ChromGet(UnifiedSequence)
 ```
 Then Fit the HMM and Viterbi:
 ```
-BiasHMM=hmm.discnp::hmm(Chrom[["ChromSplit"]],K=3),itmax=1000)
+BiasHMM=hmm.discnp::hmm(Chrom[["ChromSplit"]],K=3,itmax=1000)
 BiasViterbi=hmm.discnp::viterbi(Chrom[["ChromSplit"]],BiasHMM)
 ```
 Scoring the Regions:
