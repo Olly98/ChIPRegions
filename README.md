@@ -7,4 +7,4 @@ and run the following line of R code
 ```
 install.packages("Path_To_ChIPRegions",repos=NULL,type="source")
 ```
-you will also need the following packages from Bioconductor  ```GenomicRanges```, ```IRanges```, ```Signac```, ```GenomeInfoDb```, ```S4Vectors``` and from CRAN you will need ```hmm.discnp```
+you will also need the following packages from Bioconductor  ```GenomicRanges```, ```IRanges```, ```Signac```, ```GenomeInfoDb```, ```S4Vectors```, ```rtracklayer``` and from CRAN you will need ```hmm.discnp```
