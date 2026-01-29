@@ -37,3 +37,7 @@ Splitting the Genome into Contiguous regions corresponding to each HMM state
 ```
 ContiguousRegions=GetRegions(Chrom[["ChromSplit"]],BiasViterbi,UnifiedSequence)
 ```
+## Running the R Scripts
+This repository contains scripts to run the ENCODE wide bias discovery & Bias Quantification for peaks called with MACS2, GEM and SISSRs seen in the paper 'Systematic Regional Bias: Ubiquitous in ChIP-seq and Widespread Throughout ENCODE'
+
+
