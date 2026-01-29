@@ -9,7 +9,7 @@ install.packages("Path_To_ChIPRegions",repos=NULL,type="source")
 ```
 you will also need the following packages from Bioconductor  ```GenomicRanges```, ```IRanges```, ```GenomeInfoDb```, ```S4Vectors```, ```rtracklayer``` and from CRAN you will need ```hmm.discnp``` and ```Signac```
 ## Using ChIPRegions
-Use the following code toimport the bedfiles in 'ExampleData':
+Use the following code to import the bedfiles in 'ExampleData':
 ```
 CEBPGK562_Experiment1_Rep1=import("PathToExampleData/CEBPGK562_Experiment1_Rep1.bed.gz",format="narrowPeak")
 CEBPGK562_Experiment1_Rep2=import("PathToExampleData/CEBPGK562_Experiment1_Rep2.bed.gz",format="narrowPeak")
@@ -33,7 +33,7 @@ Scoring the Regions:
 ComputedScores=ScoreRegions(UnifiedSequence,Viterbi = BiasViterbi,Bedlist,Scorename = "signalValue")
 # The signalValue here is not fold change from control, results will differ from paper
 ```
-Splitting the Genome into Contigous regions corresponding to each HMM state
+Splitting the Genome into Contiguous regions corresponding to each HMM state
 ```
 ContiguousRegions=GetRegions(Chrom[["ChromSplit"]],BiasViterbi,UnifiedSequence)
 ```
