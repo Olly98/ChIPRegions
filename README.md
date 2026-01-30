@@ -40,4 +40,13 @@ ContiguousRegions=GetRegions(Chrom[["ChromSplit"]],BiasViterbi,UnifiedSequence)
 ## Running the R Scripts
 This repository contains scripts to run the ENCODE wide bias discovery & Bias Quantification for peaks called with MACS2, GEM and SISSRs seen in the paper 'Systematic Regional Bias: Ubiquitous in ChIP-seq and Widespread Throughout ENCODE'
 
+All raw data and metadata required to run these scripts have been uploaded to Zenodo (DOI: 10.5281/zenodo.18409232). To run the scripts, move them into a folder containing all of the data downloaded from Zenodo, and run on the command line with:
+```
+Rscript ScriptName.R
+```
+Please note that some scripts will iteratively download and delete bed files from ENCODE, so avoid running multiple scripts simultaneously in the same folder.
+
+"ENCODEExperimentHMMRunner.R" and "RepSetRunner.R" perform bias discovery between matched ENCODE human TF ChIP-seq experiments, and the discovery of bias between replicates from the same experiment respectively. "ENCODEExperimentRandomHMM.R" and "RepSetsRandom.R" perform "bias discovery" with randomised versions of ENCODE datasets, serving as a negative control.
+
+"PeakCallersHMMs.R" performs bias discovery for a subset of 90 ENCODE experiment sets with peaks called by MACS2, GEMR and SISSRs. "PeakCallersHMMsComp.R" performs bias discovery on the subset of peak loci that are unanimously identified across all three peak callers.
 
