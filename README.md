@@ -1,5 +1,5 @@
 # ChIPRegions
-R package implementing methodology described in the paper 'Systematic Regional Bias: Ubiquitous in ChIP-seq and Widespread Throughout ENCODE'
+R package implementing methodology described in the paper 'Systematic Regional Bias is Widespread In ChIP-seq'
 
 ## Downloading and Using Package
 To install the package, Download the folder entitled 'ChIPRegions' to your device 
@@ -38,7 +38,7 @@ Splitting the Genome into Contiguous regions corresponding to each HMM state
 ContiguousRegions=GetRegions(Chrom[["ChromSplit"]],BiasViterbi,UnifiedSequence)
 ```
 ## Running the R Scripts
-This repository contains scripts to run the ENCODE wide bias discovery & Bias Quantification for peaks called with MACS2, GEM and SISSRs seen in the paper 'Systematic Regional Bias: Ubiquitous in ChIP-seq and Widespread Throughout ENCODE'
+This repository contains scripts to run the ENCODE wide bias discovery & Bias Quantification for peaks called with MACS2, GEM and SISSRs seen in the paper 'Systematic Regional Bias is Widespread In ChIP-seq'
 
 All raw data and metadata required to run these scripts have been uploaded to Zenodo (DOI: 10.5281/zenodo.18409232). To run the scripts, move them into a folder containing all of the data downloaded from Zenodo, and run on the command line with:
 ```
