@@ -51,4 +51,4 @@ Please note that some scripts will iteratively download and delete bed files fro
 "PeakCallersHMMs.R" performs bias discovery for a subset of 90 ENCODE experiment sets with peaks called by MACS2, GEMR and SISSRs. "PeakCallersHMMsComp.R" performs bias discovery on the subset of peak loci that are unanimously identified across all three peak callers.
 ## Updated R Scripts
 
-The "UpdatedScripts" folder contains all previous code in addition to many new Rscripts. Briefly, each R script performs the basic analysis that its name implies. The outputs of these scripts are used by the .Rmd to produce the summarries/tables/figures presented in the paper. The latest upload to Zenodo (DOI: 10.5281/zenodo.18409232) has been prepopulated with the outputs of the R scripts.
+The "UpdatedScripts" folder contains all previous code in addition to many new R scripts. Briefly, each R script performs the basic analysis that its name implies. The outputs of these scripts are used by the .Rmd files to produce the summaries/tables/figures presented in the paper. The latest upload to Zenodo (DOI: 10.5281/zenodo.18409232) has been prepopulated with the outputs of the R scripts.
