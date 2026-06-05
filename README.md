@@ -49,4 +49,6 @@ Please note that some scripts will iteratively download and delete bed files fro
 "ENCODEExperimentHMMRunner.R" and "RepSetRunner.R" perform bias discovery between matched ENCODE human TF ChIP-seq experiments, and the discovery of bias between replicates from the same experiment respectively. "ENCODEExperimentRandomHMM.R" and "RepSetsRandom.R" perform "bias discovery" with randomised versions of ENCODE datasets, serving as a negative control (no "bias" should be discovered in random data).
 
 "PeakCallersHMMs.R" performs bias discovery for a subset of 90 ENCODE experiment sets with peaks called by MACS2, GEMR and SISSRs. "PeakCallersHMMsComp.R" performs bias discovery on the subset of peak loci that are unanimously identified across all three peak callers.
+## Updated R Scripts
 
+The "UpdatedScripts" folder contains all previous code in addition to many new Rscripts. Briefly, each R script performs the basic analysis that its name implies. The outputs of these scripts are used by the .Rmd to produce the summarries/tables/figures presented in the paper. The latest upload to Zenodo (DOI: 10.5281/zenodo.18409232) has been prepopulated with the outputs of the R scripts.
