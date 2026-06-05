@@ -1,0 +1,580 @@
+---
+title: "QCAndCC"
+output: html_document
+date: "2025-12-15"
+---
+```{r setup, include=FALSE}
+
+
+knitr::opts_knit$set(root.dir = "Path/To/DataFolder") # rmarkdown will otherwise default to the folder where the script is
+```
+```{r}
+setwd("/Users/oliverhughes/Downloads/DataFolderForManuscript")
+NewPUSCCV2=readRDS("./NewPUSCCV3.rds")
+MACModels=readRDS("./MACOptimalModelExpSetsCCV3.rds")
+GEMModels=readRDS("./GEMOptimalModelExpSetsCCV3.rds")
+SISSModels=readRDS("./SISSOptimalModelExpSetsCCV3.rds")
+CCViterbis=readRDS("./CCViterbis.rds")
+names(CCViterbis)=names(NewPUSCCV2)
+RegionalATAC3JMACV2=readRDS("./RegionalATAC3JMACV2.rds")
+ReadDepthsCCV2=readRDS("./ReadDepthsCCV2.rds")
+Chroms=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX")
+SignalDataCC=readRDS("./SignalDataCCV2.rds")
+RNACC=readRDS("./RNACC.rds")
+names(RNACC)=names(SignalDataCC)
+```
+
+```{r}
+
+ATACResultList=list()
+for(i in 1:length(RegionalATAC3JMACV2)){
+  if(is.null(RegionalATAC3JMACV2[[i]])){
+    next
+  }
+  ATAC=RegionalATAC3JMACV2[[i]]
+  StateNum=length(unique(ATAC$State))
+  States=sort(unique(ATAC$State))
+  ATACFiles=names(ATAC@metadata)[-c(grep(paste(c(" 1"," 2"," 3"," 4"),collapse="|"),names(ATAC@metadata)))]
+  Norms=ATACFiles[grep("Norm",ATACFiles)]
+  NotNorms=ATACFiles[!ATACFiles%in%Norms]
+  Mins=c()
+  for(k in 1:length(Norms)){
+    Mins[k]=as.numeric(unique(ATAC@metadata[[Norms[k]]]))
+  }
+  Factor=Mins/min(Mins)
+  
+  for(k in 1:length(NotNorms)){
+    ATAC@metadata[[NotNorms[k]]]=ATAC@metadata[[NotNorms[k]]]/Factor[grep(NotNorms[k],Norms)]
+  }
+  OverallAvg=c()
+  for(m in 1:length(ATAC)){
+    tots=c()
+    for(t in 1:length(NotNorms)){
+      tots[t]=ATAC@metadata[[NotNorms[t]]][m]
+    }
+    OverallAvg[m]=mean(tots)
+    
+    
+  }
+  ATACAvg=c()
+  for(j in 1:StateNum){
+    ATACAvg[j]=mean(OverallAvg[ATAC$State==States[j]]/width(ATAC[ATAC$State==States[j]]))
+  }
+  ATACResultList[[i]]=ATACAvg
+}
+```
+
+
+```{r}
+ContResultList=list()
+for(i in 1:length(RegionalATAC3JMACV2)){
+  if(is.null(RegionalATAC3JMACV2[[i]])){
+    next
+  }
+  ATAC=RegionalATAC3JMACV2[[i]]
+  StateNum=length(unique(ATAC$State))
+  States=sort(unique(ATAC$State))
+  ATACFiles=names(ATAC@metadata)[c(grep(paste(c(" 1"," 2"," 3"," 4"),collapse="|"),names(ATAC@metadata)))]
+  Norms=ATACFiles[grep("Norm",ATACFiles)]
+  NotNorms=ATACFiles[!ATACFiles%in%Norms]
+  Mins=c()
+  for(k in 1:length(Norms)){
+    Mins[k]=as.numeric(unique(ATAC@metadata[[Norms[k]]]))
+  }
+  Factor=Mins/min(Mins)
+  
+  for(k in 1:length(NotNorms)){
+    ATAC@metadata[[NotNorms[k]]]=ATAC@metadata[[NotNorms[k]]]/Factor[grep(unlist(strsplit(NotNorms[k],split=" "))[c(T,F)],Norms)]
+  }
+  Sperry=c(" 1"," 2"," 3"," 4")[c("1","2","3","4")%in%unlist(strsplit(Norms,split=" "))]
+  SperList=list()
+  for(f in 1:length(Sperry)){
+  OverallAvg=c()
+  for(m in 1:length(ATAC)){
+    NotNormSper=NotNorms[grep(Sperry[f],NotNorms)]
+    tots=c()
+    for(t in 1:length(NotNormSper)){
+      tots[t]=ATAC@metadata[[NotNormSper[t]]][m]
+    }
+    OverallAvg[m]=mean(tots)
+    
+    
+  }
+  ATACAvg=c()
+  for(j in 1:StateNum){
+    ATACAvg[j]=mean(OverallAvg[ATAC$State==States[j]]/width(ATAC[ATAC$State==States[j]]))
+  }
+  SperList[[f]]=ATACAvg
+  }
+  ContResultList[[i]]=SperList
+}
+```
+
+
+
+```{r}
+OpenChrom=list()
+AllSpers=list()
+for(i in 1:length(RegionalATAC3JMACV2)){
+    if(is.null(RegionalATAC3JMACV2[[i]])){
+    next
+  }
+  ATAC=RegionalATAC3JMACV2[[i]]
+  StateNum=length(unique(ATAC$State))
+  States=sort(unique(ATAC$State))
+  ATACFiles=names(ATAC@metadata)[-c(grep(paste(c(" 1"," 2"," 3"," 4"),collapse="|"),names(ATAC@metadata)))]
+  Norms=ATACFiles[grep("Norm",ATACFiles)]
+  NotNorms=ATACFiles[!ATACFiles%in%Norms]
+  Mins=c()
+  for(k in 1:length(Norms)){
+    Mins[k]=as.numeric(unique(ATAC@metadata[[Norms[k]]]))
+  }
+  Factor=Mins/min(Mins)
+  
+  for(k in 1:length(NotNorms)){
+    ATAC@metadata[[NotNorms[k]]]=ATAC@metadata[[NotNorms[k]]]/Factor[grep(NotNorms[k],Norms)]
+  }
+  OverallAvg=c()
+  for(m in 1:length(ATAC)){
+    tots=c()
+    for(t in 1:length(NotNorms)){
+      tots[t]=ATAC@metadata[[NotNorms[t]]][m]
+    }
+    OverallAvg[m]=mean(tots)+1
+    
+    
+  }
+  
+  
+  OpenChrom[[i]]=OverallAvg/width(ATAC)
+}
+
+#LapsTable=read.table(text=(NewPUSCC[[i]]$OverlapPattern))
+#Posses=list(c(1,2),c(3,4),c(5,6))
+
+  #Spers=list()
+  #for(k in 1:length(ContResultList[[i]])){
+  # SperPeaks=c()
+  #for(j in 1:length(ATAC)){
+  #  SperPeaks[j]=sum(LapsTable[overlapsAny(NewPUSCC[[i]],ATAC[j]),Posses[[k]]])
+    
+  #}
+  #Spers[[k]]=SperPeaks
+   
+ 
+  #}
+  #AllSpers[[i]]=Spers
+#}
+
+```
+
+```{r}
+AllSpers=list()
+for(i in 1:length(RegionalATAC3JMACV2)){
+    if(is.null(RegionalATAC3JMACV2[[i]])){
+    next
+  }
+  ATAC=RegionalATAC3JMACV2[[i]]
+  StateNum=length(unique(ATAC$State))
+  States=unique(ATAC$State)
+  ATACFiles=names(ATAC@metadata)[c(grep(paste(c(" 1"," 2"," 3"," 4"),collapse="|"),names(ATAC@metadata)))]
+  Norms=ATACFiles[grep("Norm",ATACFiles)]
+  NotNorms=ATACFiles[!ATACFiles%in%Norms]
+  Mins=c()
+  for(k in 1:length(Norms)){
+    Mins[k]=as.numeric(unique(ATAC@metadata[[Norms[k]]]))
+  }
+  Factor=Mins/min(Mins)
+  
+  for(k in 1:length(NotNorms)){
+    ATAC@metadata[[NotNorms[k]]]=ATAC@metadata[[NotNorms[k]]]/Factor[grep(unlist(strsplit(NotNorms[k],split=" "))[c(T,F)],Norms)]
+  }
+  Sperry=c(" 1"," 2"," 3"," 4")[c("1","2","3","4")%in%unlist(strsplit(Norms,split=" "))]
+  SperList=list()
+  for(f in 1:length(Sperry)){
+  OverallAvg=c()
+  for(m in 1:length(ATAC)){
+    NotNormSper=NotNorms[grep(Sperry[f],NotNorms)]
+    tots=c()
+    for(t in 1:length(NotNormSper)){
+      tots[t]=ATAC@metadata[[NotNormSper[t]]][m]
+    }
+    OverallAvg[m]=mean(tots)+1
+    
+    
+  }
+  SperList[[f]]=OverallAvg/width(ATAC)
+  
+  }
+  AllSpers[[i]]=SperList
+  }
+
+
+```
+Chromatin State vs Input ratio 
+```{r}
+RefList=c(2,1,3,1,2,1,2,2,1,0,0,0,0,2)
+RSq=list()
+Beta=list()
+for(i in 1:length(OpenChrom)){
+  if(RefList[i]==0){
+    next
+  }
+  This=AllSpers[[i]]
+  RefExp=This[[RefList[i]]]
+  VarExp=c()
+  Coeff=c()
+  for(j in 1:length(This)){
+  PlotFrame=data.frame(log((This[[j]]+0.0001)/(RefExp+0.0001)),OpenChrom[[i]])
+  names(PlotFrame)=c("ChIPInput_Ratio","ATAC")
+  fit <- lm(ChIPInput_Ratio ~ log(ATAC), data = PlotFrame)
+  jin=summary(fit)
+  VarExp[j]=jin$adj.r.squared
+  Coeff[j]=jin$coefficients[2]
+  }
+  Beta[[i]]=Coeff[Coeff!=0]
+  RSq[[i]]=VarExp[!is.nan(VarExp)]
+}
+
+
+
+```
+```{r}
+
+
+
+
+AllList=list()
+for(i in 1:length(ReadDepthsCCV2)){
+  if(is.null(RegionalATAC3JMACV2[[i]])){
+    next
+  }
+  ThisReads=ReadDepthsCCV2[[i]]
+  ThisPeaks=NewPUSCCV2[[i]]
+  ThisRegs=RegionalATAC3JMACV2[[i]]
+  States=sort(unique(ThisRegs$State))
+  ExpList=list()
+  for(j in 1:length(ThisReads)){
+    StateOne=c()
+    RDFrame1=data.frame(rep(c(1:length(ThisReads[[j]][[1]]@signals)),times=lengths(ThisReads[[j]][[1]]@signals)),unlist(ThisReads[[j]][[1]]@signals)+unlist(ThisReads[[j]][[2]]@signals))
+    colnames(RDFrame1)=c("Peak","MAX")
+    Rep1Bins=aggregate(RDFrame1$MAX,FUN=mean,by=list(RDFrame1$Peak))
+    colnames(Rep1Bins)=c("Peak","Max")
+     for(k in 1:length(ThisRegs)){
+     StateOne[k]=mean(Rep1Bins$Max[overlapsAny(ThisPeaks,ThisRegs[k])])
+
+
+     }
+    ExpList[[j]]=StateOne
+  }
+  AllList[[i]]=ExpList
+}
+
+
+
+```
+Chromatin State vs Read Depth at Peaks (Ratio)
+```{r}
+
+RefList=c(2,1,3,1,2,1,2,2,1,0,0,0,0,2)
+
+RSq=list()
+Beta=list()
+
+for(i in 1:length(AllList)){
+  if(RefList[i]==0){
+    next
+  }
+  This=AllList[[i]]
+  RefExp=This[[RefList[i]]]
+  VarExp=c()
+  Coeff=c()
+  
+  for(j in 1:length(This)){
+  PlotFrame=data.frame(log((This[[j]]+0.0001)/(RefExp+0.0001)),OpenChrom[[i]])
+  names(PlotFrame)=c("ChIPTreat_Ratio","ATAC")
+  fit <- lm(ChIPTreat_Ratio ~ log(ATAC), data = PlotFrame)
+  jin=summary(fit)
+  VarExp[j]=jin$adj.r.squared
+  Coeff[j]=jin$coefficients[2]
+  }
+  Beta[[i]]=Coeff[Coeff!=0]
+  RSq[[i]]=VarExp[!is.nan(VarExp)]
+
+ 
+}
+
+
+```
+Motif Scanning
+```{r}
+
+
+library("universalmotif")
+library(memes)
+library(BSgenome.Hsapiens.UCSC.hg38)
+hs.genome=BSgenome.Hsapiens.UCSC.hg38
+AllMotifs=paste("./JASPAR2024_CORE_redundant_pfms_meme/",list.files("./JASPAR2024_CORE_redundant_pfms_meme"),sep="")
+AllPWMs=lapply(AllMotifs,read_meme)
+
+GetTFNames=c()
+for(i in 1:length(AllPWMs)){
+    GetTFNames[i]=AllPWMs[[i]]@altname
+}
+names(AllPWMs)=GetTFNames
+
+
+CCMotRel=list()
+for(i in 1:length(CCViterbis)){
+  print(i)
+  if(is.null(CCViterbis[[i]])){
+    next
+  }
+  
+  PUS=NewPUSCCV2[[names(CCViterbis)[i]]]
+  Chrom=ChromGet(PUS,MinPeaks = 3)
+  PUS=Chrom[["Unified Sequence"]]
+  PUS=PUS[seqnames(PUS)%in%Chroms]
+  Chrum=Chroms[Chroms%in%seqnames(PUS)]
+ 
+  
+  PUS=keepSeqlevels(PUS,Chrum,pruning.mode = "coarse")
+  Keeps=which(names(Chrom[["ChromSplit"]])%in%Chroms)
+  Vit=CCViterbis[[i]][Keeps]
+  TF=unlist(strsplit(names(NewPUSCCV2)[i],split=" "))[c(T,F)]
+  TF=TF[!(TF%in%c("7","S3"))]
+  if(!(TF[1]%in%GetTFNames)){
+    next
+  }
+ 
+  Vit=unlist(Vit)
+  StateMot=c()
+  Seq=get_sequence(PUS,hs.genome)
+      
+ for(j in 1:length(unique(Vit))){
+   
+   StateMo=runFimo(Seq[Vit==j],motifs = AllPWMs[names(AllPWMs)==TF[1]],thresh=1e-05)
+   if(is.null(StateMo)){
+     next
+   }
+   StateMot[j]=sum(overlapsAny(PUS[Vit==j],StateMo))/sum(Vit==j)
+   
+ }
+CCMotRel[[i]]=StateMot
+names(CCMotRel)[i]=names(CCViterbis)[i]
+}
+
+
+
+```
+Motif Enrichment in C.C Biased Regions
+```{r}
+States=c(4,1,5,1,4,1,3,6,2,0,0,0,0,2)
+MotIncreaseT=c()
+
+for(i in 1:length(States)){
+  if(States[i]==0){
+    next
+  }
+  Mots=as.numeric(unlist(CCMotRel[[i]]))
+ 
+  MotIncreaseT[i]=(Mots[States[i]]-median(Mots[-States[i]]))/median(Mots[-States[i]])
+}
+
+```
+```{r}
+OneStateCC=c()
+for(i in 1:length(NewPUSCCV2)){
+  if(is.null(nrow(SignalDataCC[[i]]))){
+    next
+  }
+  Frame=SignalDataCC[[i]]
+  One=c()
+  for(j in 1:ncol(Frame)){
+    One[j]=exp(mean(log(Frame[,j])))
+  }
+  OneStateCC[[i]]=One
+}
+
+names(OneStateCC)=names(SignalDataCC)
+
+```
+ChIP Signal Across Regions
+```{r}
+
+States=c(4,1,5,1,4,1,3,6,2,0,0,0,0,2)
+SigIncreaseT=c()
+
+for(i in 1:length(NewPUSCCV2)){
+  if(States[i]==0){
+    next
+  }
+  Sig=as.numeric(unlist(OneStateCC[names(OneStateCC)==names(NewPUSCCV2)[i]]))
+ 
+  SigIncreaseT[i]=(Sig[States[i]]-median(Sig[-States[i]]))/median(Sig[-States[i]])
+}
+
+
+```
+Gene Expression Across Regions
+```{r}
+FinalExpData=list()
+for(i in 1:length(RNACC)){
+  ThisOne=RNACC[[i]]
+  StateExp=c()
+  ExpMatrix=matrix(nrow=length(ThisOne[[1]]),ncol=length(ThisOne))
+  for(j in 1:length(ThisOne)){
+    EvenMoreThisOne=ThisOne[[j]]
+    NameList=c()
+    for(k in 1:length(EvenMoreThisOne)){
+      ExpMatrix[k,j]=median(EvenMoreThisOne[[k]])
+    }
+   
+
+ 
+  }
+  ExpMatrix=t(t(ExpMatrix)/rowMeans(ExpMatrix))
+    
+  FinalExpData[[i]]=colMeans(ExpMatrix)
+}
+
+
+names(FinalExpData)=names(RNACC)
+```
+Gene Expression in C.C Biased Regions
+```{r}
+
+States=c(4,1,5,1,4,1,3,6,2,0,0,0,0,2)
+ExpIncreaseT=c()
+
+for(i in 1:length(NewPUSCCV2)){
+  if(States[i]==0){
+    next
+  }
+  Exp=as.numeric(unlist(FinalExpData[names(FinalExpData)==names(NewPUSCCV2)[i]]))
+ 
+  ExpIncreaseT[i]=(Exp[States[i]]-median(Exp[-States[i]]))/median(Exp[-States[i]])
+}
+```
+
+```{r}
+
+ATAC=RegionalATAC3JMACV2[[4]]
+  StateNum=length(unique(ATAC$State))
+  States=unique(ATAC$State)
+  ATACFiles=names(ATAC@metadata)[c(grep(paste(c(" 1"," 2"," 3"," 4"),collapse="|"),names(ATAC@metadata)))]
+  Norms=ATACFiles[grep("Norm",ATACFiles)]
+  NotNorms=ATACFiles[!ATACFiles%in%Norms]
+  Mins=c()
+  for(k in 1:length(Norms)){
+    Mins[k]=as.numeric(unique(ATAC@metadata[[Norms[k]]]))
+  }
+  Factor=Mins/min(Mins)
+  
+  for(k in 1:length(NotNorms)){
+    ATAC@metadata[[NotNorms[k]]]=ATAC@metadata[[NotNorms[k]]]/Factor[grep(unlist(strsplit(NotNorms[k],split=" "))[c(T,F)],Norms)]
+  }
+  Sperry=c(" 1"," 2"," 3"," 4")[c("1","2","3","4")%in%unlist(strsplit(Norms,split=" "))]
+  SperList=list()
+  for(f in 2){
+  OverallAvg=c()
+  for(m in 1:length(ATAC)){
+    NotNormSper=NotNorms[grep(Sperry[f],NotNorms)]
+    tots=c()
+    for(t in 1:length(NotNormSper)){
+      tots[t]=ATAC@metadata[[NotNormSper[t]]][m]
+    }
+    OverallAvg[m]=mean(tots)+1
+    
+    
+  }
+  
+  }
+
+Sper2=OverallAvg/width(ATAC)
+
+ATAC=RegionalATAC3JMACV2[[4]]
+  StateNum=length(unique(ATAC$State))
+  States=unique(ATAC$State)
+  ATACFiles=names(ATAC@metadata)[c(grep(paste(c(" 1"," 2"," 3"," 4"),collapse="|"),names(ATAC@metadata)))]
+  Norms=ATACFiles[grep("Norm",ATACFiles)]
+  NotNorms=ATACFiles[!ATACFiles%in%Norms]
+  Mins=c()
+  for(k in 1:length(Norms)){
+    Mins[k]=as.numeric(unique(ATAC@metadata[[Norms[k]]]))
+  }
+  Factor=Mins/min(Mins)
+  
+  for(k in 1:length(NotNorms)){
+    ATAC@metadata[[NotNorms[k]]]=ATAC@metadata[[NotNorms[k]]]/Factor[grep(unlist(strsplit(NotNorms[k],split=" "))[c(T,F)],Norms)]
+  }
+  Sperry=c(" 1"," 2"," 3"," 4")[c("1","2","3","4")%in%unlist(strsplit(Norms,split=" "))]
+  SperList=list()
+  for(f in 1){
+  OverallAvg=c()
+  for(m in 1:length(ATAC)){
+    NotNormSper=NotNorms[grep(Sperry[f],NotNorms)]
+    tots=c()
+    for(t in 1:length(NotNormSper)){
+      tots[t]=ATAC@metadata[[NotNormSper[t]]][m]
+    }
+    OverallAvg[m]=mean(tots)+1
+    
+    
+  }
+  
+  }
+
+Sper1=OverallAvg/width(ATAC)
+
+```
+
+Figures for Manuscript
+```{r}
+## Two datapoints are dropped in these figures, annotated to non-standard chromosome M and chromosome Y (K562 is a female cell line)
+library(ggplot2)
+AllStates=RegionalATAC3JMACV2[[4]]$State
+AllStates[AllStates=="1"]="Biased"
+AllStates[AllStates!="Biased"]="Unbiased"
+
+PlotFrame=data.frame(log((AllList[[4]][[1]])/(AllList[[4]][[2]])),log(Sper1/Sper2),AllStates,OpenChrom[[4]],Sper1Peaks,Sper2Peaks)
+
+names(PlotFrame)[1:4]=c("Peak_Ratio","ChIP_Ratio","State","ATAC")
+
+
+#fit <- gam(Peak_Ratio ~ s(ChIP_Ratio,k=4), data = PlotFrame, family = gaussian,gamma = 1.8,method="REML",weights = #(PlotFrame$Sper1Peaks+PlotFrame$Sper2Peaks))
+fit <- lm(ChIP_Ratio ~ log(ATAC), data = PlotFrame)
+pred <- predict(fit,PlotFrame, type = "response", se=TRUE)
+PlotFrame$fit=pred$fit
+PlotFrame$Upper=pred$fit+pred$se.fit
+PlotFrame$Lower=pred$fit-pred$se.fit
+
+ggplot(PlotFrame, aes(x=(log(ATAC)), y=ChIP_Ratio,colour = State)) + 
+  geom_point() +
+  scale_color_manual(values = c("Biased" = "magenta", 
+                                "Unbiased" = "black"))+
+    geom_ribbon(data = PlotFrame, alpha = 0.3,
+              aes(ymin = Lower, ymax = Upper, fill = "confidence interval",),fill="grey",colour="grey") +
+     geom_line(data = PlotFrame, aes(y=fit),colour="blue",linewidth=1)
+     xlim(-7,-1)
+  #ylim(-1,1)
+
+
+fit <- lm(Peak_Ratio ~ log(ATAC), data = PlotFrame)
+pred <- predict(fit,PlotFrame, type = "response", se=TRUE)
+PlotFrame$fit=pred$fit
+PlotFrame$Upper=pred$fit+pred$se.fit
+PlotFrame$Lower=pred$fit-pred$se.fit
+
+ggplot(PlotFrame, aes(x=(log(ATAC)), y=Peak_Ratio,colour = State)) + 
+  geom_point() +
+  scale_color_manual(values = c("Biased" = "magenta", 
+                                "Unbiased" = "black"))+
+    geom_ribbon(data = PlotFrame, alpha = 0.3,
+              aes(ymin = Lower, ymax = Upper, fill = "confidence interval",),fill="grey",colour="grey") +
+     geom_line(data = PlotFrame, aes(y=fit),colour="blue",linewidth=1)
+     #xlim(-7,-1)
+  #ylim(-0.5,5)
+
+
+```

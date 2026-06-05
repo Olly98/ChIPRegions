@@ -1,0 +1,741 @@
+---
+title: "QCs"
+output: html_document
+date: "2026-05-04"
+---
+
+```{r setup, include=FALSE}
+
+
+knitr::opts_knit$set(root.dir = "Path/To/DataFolder") # rmarkdown will otherwise default to the folder where the script is
+```
+
+```{r}
+library(ChIPRegions)
+setwd("/Users/oliverhughes/Downloads/DataFolderForManuscript")
+NewQCObject=readRDS("./QCObject.rds")
+SubSampSets=read.csv("./SubSampSets.csv")
+MACOptimalModelExpSets=readRDS("./MACOptimalModelExpSets.rds")
+ExpContrasts=readRDS("./ExpBiasSeverity.rds")
+RepContrasts=readRDS("./RepBiasSeverity.rds")
+
+
+```
+```{r}
+names(NewQCObject)=SubSampSets$Combs
+
+
+CrossCor=list()
+Uniformity=list()
+Enrichment=list()
+ReadDepth=list()
+for(i in 1:length(NewQCObject)){
+  if(is.null(NewQCObject[[i]])){
+    next
+  }
+  fop=NewQCObject[[i]]
+  RelCC=c()
+  SSD=c()
+  RiP=c()
+  Reads=c()
+  for(j in 1:length(fop)){
+    flup=fop[[j]]
+    RelCC[j]=mean(flup$RelCC[!rownames(flup)=="Cont"])
+    SSD[j]=mean(flup$SSD[!rownames(flup)=="Cont"])
+    RiP[j]=mean(flup$`RiP%`[!rownames(flup)=="Cont"])
+    Reads[j]=mean(flup$Reads[!rownames(flup)=="Cont"])
+  }
+  CrossCor[[i]]=RelCC
+  Uniformity[[i]]=SSD
+  Enrichment[[i]]=RiP
+  ReadDepth[[i]]=Reads
+}
+```
+```{r}
+
+Names=c("Uniformity","CrossCor","Enrichment","ReadDepth")
+
+ResultFrameExpQCBS=data.frame(Names,c(1:length(Names)),c(1:length(Names)),c(1:length(Names)))
+
+colnames(ResultFrameExpQCBS)=c("Comparison","Slope","Rsq","P-value")
+
+ResultFrameExpQCBO=data.frame(Names,c(1:length(Names)),c(1:length(Names)))
+
+colnames(ResultFrameExpQCBO)=c("Comparison","Slope","P-value")
+```
+```{r}
+
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(Uniformity)){
+  if(is.null(Uniformity[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(Uniformity[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=na.omit(Frame))
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+ResultFrameExpQCBS[1,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+```
+```{r}
+
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(Uniformity)){
+  if(is.null(Uniformity[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(Uniformity[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias,IsBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",Frame)
+summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+ResultFrameExpQCBO[1,-1]=c(g$coefficients[2],g$coefficients[8])
+
+
+```
+```{r}
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(CrossCor)){
+  if(is.null(CrossCor[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(CrossCor[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=na.omit(Frame))
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+ResultFrameExpQCBS[2,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(CrossCor)){
+  if(is.null(CrossCor[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(CrossCor[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameExpQCBO[2,-1]=c(g$coefficients[2],g$coefficients[8])
+
+```
+
+```{r}
+
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(Enrichment)){
+  if(is.null(Enrichment[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(Enrichment[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=na.omit(Frame))
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameExpQCBS[3,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(Enrichment)){
+  if(is.null(Enrichment[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(Enrichment[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+#summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+ResultFrameExpQCBO[3,-1]=c(g$coefficients[2],g$coefficients[8])
+
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(ReadDepth)){
+  if(is.null(ReadDepth[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(ReadDepth[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=na.omit(Frame))
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+ResultFrameExpQCBS[4,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(MACOptimalModelExpSets)==19)
+
+
+
+MaxDiffBias=c()
+
+for(i in 1:length(ExpContrasts)){
+  if(is.null(ExpContrasts[[i]])){
+    next
+  }
+  MaxDiffBias[i]=max(ExpContrasts[[i]])/mean(ExpContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(ReadDepth)){
+  if(is.null(ReadDepth[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(ReadDepth[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+#summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameExpQCBO[4,-1]=c(g$coefficients[2],g$coefficients[8])
+
+```
+
+```{r}
+MACRepSetHMMs=readRDS("/Users/oliverhughes/Downloads/DataFolder/MACRepSetHMMs.rds")
+Test=unlist(NewQCObject,recursive = F)
+
+TestModel=MACRepSetHMMs[-c(grep(c(paste("LCORL-human HepG2",sep="|")),names(MACRepSetHMMs)))]
+RepContrasts=RepContrasts[names(RepContrasts)%in%names(TestModel)]
+```
+
+```{r}
+CrossCorRep=list()
+UniformityRep=list()
+EnrichmentRep=list()
+ReadDepthRep=list()
+for(i in 1:length(Test)){
+  if(is.null(Test[[i]])){
+    next
+  }
+  fop=Test[[i]]
+  
+  
+  
+
+  CrossCorRep[[i]]=min(fop$RelCC[!rownames(fop)=="Cont"])
+  UniformityRep[[i]]=min(fop$SSD[!rownames(fop)=="Cont"])
+  EnrichmentRep[[i]]=min(fop$`RiP%`[!rownames(fop)=="Cont"])
+  ReadDepthRep[[i]]=min(fop$Reads[!rownames(fop)=="Cont"])
+}
+
+
+```
+```{r}
+Names=c("Uniformity","CrossCor","Enrichment","ReadDepth")
+
+ResultFrameQCBS=data.frame(Names,c(1:length(Names)),c(1:length(Names)),c(1:length(Names)))
+
+colnames(ResultFrameQCBS)=c("Comparison","Slope","Rsq","P-value")
+
+ResultFrameQCBO=data.frame(Names,c(1:length(Names)),c(1:length(Names)))
+
+colnames(ResultFrameQCBO)=c("Comparison","Slope","P-value")
+
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+   
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=rep(NA,length(RepContrasts))
+
+
+for(i in 1:length(UniformityRep)){
+  if(is.null(UniformityRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(UniformityRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=na.omit(Frame))
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameQCBS[1,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+```
+```{r}
+
+
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=rep(NA,length(RepContrasts))
+
+
+for(i in 1:length(UniformityRep)){
+  if(is.null(UniformityRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(UniformityRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias,IsBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+#summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+ResultFrameQCBO[1,-1]=c(g$coefficients[2],g$coefficients[8])
+
+
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(CrossCorRep)){
+  if(is.null(CrossCorRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(CrossCorRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=na.omit(Frame))
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameQCBS[2,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(CrossCorRep)){
+  if(is.null(CrossCorRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(CrossCorRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+#summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameQCBO[2,-1]=c(g$coefficients[2],g$coefficients[8])
+
+
+```
+```{r}
+
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(EnrichmentRep)){
+  if(is.null(EnrichmentRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(EnrichmentRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=na.omit(Frame))
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameQCBS[3,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+
+```
+```{r}
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(EnrichmentRep)){
+  if(is.null(EnrichmentRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(EnrichmentRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+#summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameQCBO[3,-1]=c(g$coefficients[2],g$coefficients[8])
+
+
+
+
+```
+```{r}
+
+
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(ReadDepthRep)){
+  if(is.null(ReadDepthRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(ReadDepthRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+#Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+#summary(Model)
+
+Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameQCBS[4,-1]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+
+```
+```{r}
+
+
+
+IsBias=as.numeric(lengths(TestModel)==19)
+
+
+
+MaxDiffBias=rep(NA,length(RepContrasts))
+
+for(i in 1:length(RepContrasts)){
+ if(sum(RepContrasts[[i]]=="None")>0){
+    next
+  }
+  MaxDiffBias[i]=max(RepContrasts[[i]])/mean(RepContrasts[[i]])
+}
+
+MaxDiffCC=c()
+
+
+for(i in 1:length(ReadDepthRep)){
+  if(is.null(ReadDepthRep[[i]])){
+    next
+  }
+  MaxDiffCC[i]=min(ReadDepthRep[[i]])
+}
+
+Frame=data.frame(MaxDiffCC,MaxDiffBias)
+
+Model=glm(IsBias~MaxDiffCC,family="binomial",data=Frame)
+#summary(Model)
+
+#Model=lm(MaxDiffBias~MaxDiffCC,data = na.omit(Frame))
+
+g=summary(Model)
+
+
+ResultFrameQCBO[4,-1]=c(g$coefficients[2],g$coefficients[8])
+
+
+```
+```{r}
+Ps=p.adjust(c(ResultFrameExpQCBO$`P-value`,ResultFrameExpQCBS$`P-value`,ResultFrameQCBO$`P-value`,ResultFrameQCBS$`P-value`),method="holm")
+
+#ResultFrameExpQCBS$AdjustedPVal=Ps[1:4]
+#ResultFrameExpQCBO$AdjustedPVal=Ps[5:8]
+#ResultFrameQCBS$AdjustedPVal=Ps[9:12]
+#ResultFrameQCBO$AdjustedPVal=Ps[13:16]
+
+#write.csv(ResultFrameExpQCBS,file="ResultFrameExpQCBS.csv")
+#write.csv(ResultFrameExpQCBO,file="ResultFrameExpQCBO.csv")
+#write.csv(ResultFrameQCBS,file="ResultFrameQCBS.csv")
+#write.csv(ResultFrameQCBO,file="ResultFrameQCBO.csv")
+```

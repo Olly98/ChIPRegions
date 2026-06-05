@@ -1,0 +1,161 @@
+---
+title: "scrumbo"
+output: html_document
+date: "2026-03-24"
+---
+
+```{r setup, include=FALSE}
+
+library(ggplot2)
+library(ChIPRegions)
+knitr::opts_knit$set(root.dir = "/Users/oliverhughes/Downloads/DataFolderForManuscript") # rmarkdown will otherwise default to the folder where the script is
+```
+
+
+
+
+
+```{r}
+
+Chroms=c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX")
+ExpSetRegions=readRDS("./ExpSetRegions.rds")
+OptimalHMMsExpSets=readRDS("./OptimalHMMsExpSets.rds")
+Starts=c(1,3,5,7,9)
+Stops=c(2,4,6,8,10)
+ENCContrasts=list()
+WhichState=c()
+Max=c()
+
+for(i in 1:length(OptimalHMMsExpSets)){
+  if(length(OptimalHMMsExpSets[[i]])<19){
+    next
+  }
+  Matr=OptimalHMMsExpSets[[i]]$Rho.matrix
+  Trable=(read.table(text=rownames(Matr)))
+  ExpNum=length(unlist(strsplit(rownames(Matr)[1],split=" ") ))/2
+  if(!(ExpNum%in%c(2,3,4,5))){
+    print(i)
+    print(ExpNum)
+    next
+  }
+  SperUn=c()
+  for(j in 1:ncol(Matr)){
+    Cands=c()
+    for(k in 1:ExpNum){
+      Sub=Matr[rowSums(Trable[,c(1:ncol(Trable))[-c(Starts[k],Stops[k])]])==0,j]
+      Cands[k]=sum(Sub)
+    }
+    SperUn[j]=max(Cands)
+  }
+  ENCContrasts[[i]]=SperUn
+  WhichState[i]=which(SperUn==max(SperUn))
+  Max[i]=SperUn[which(SperUn==max(SperUn))]
+
+
+}
+
+AllBiasedReg=list()
+
+for(i in 1:length(ExpSetRegions)){
+  if(is.na(WhichState[i])){
+    next
+  }
+  AllBiasedReg[[i]]=ExpSetRegions[[i]][ExpSetRegions[[i]]$State==WhichState[i]]
+}
+
+library(purrr)
+
+AllBiasedReg=compact(AllBiasedReg)
+
+library(BSgenome.Hsapiens.UCSC.hg38)
+si <- Seqinfo(genome="hg38")
+FiveHundBp=tileGenome(seqlengths(si),tilewidth = 100000)
+
+FiveHundBp=FiveHundBp@unlistData[FiveHundBp@unlistData@seqnames%in%Chroms]
+
+```
+
+
+```{r}
+library(karyoploteR)
+library(zoo)
+harmo=getCytobands(genome="hg38")
+TileCountOther=data.frame(rep(0,length(harmo)))
+for(i in 1:length(ExpSetRegions)){
+   if(is.na(WhichState[i])){
+    next
+  }
+  TileCountOther=cbind(TileCountOther,countOverlaps(harmo,ExpSetRegions[[i]]))
+  
+  
+}
+
+AllOtherCount=rowSums(TileCountOther)
+
+
+TileCountBias=data.frame(rep(0,length(harmo)))
+
+for(i in 1:length(AllBiasedReg)){
+  if(is.null(AllBiasedReg[[i]])){
+    next
+  }
+  TileCountBias=cbind(TileCountBias,countOverlaps(harmo,AllBiasedReg[[i]]))
+  
+  
+}
+
+AllBiasCount=rowSums(TileCountBias)
+Splive=FiveHundBp[rollmean(AllOtherCount,k=2)>0]
+AllB=rollmean(AllBiasCount,k=1)[rollmean(AllOtherCount,k=1)>0]
+AllO=rollmean(AllOtherCount,k=1)[rollmean(AllOtherCount,k=1)>0]
+BiasEnrich=((AllB)/(AllO+1))
+BiasOdds=(BiasEnrich)/(1-BiasEnrich)
+
+
+
+```
+```{r}
+AllRegs=ExpSetRegions[[2]]
+
+for(i in 3:length(ExpSetRegions)){
+  AllRegs=c(AllRegs,ExpSetRegions[[i]])
+}
+
+CombinedBias=AllBiasedReg[[1]]
+
+for(i in 2:length(AllBiasedReg)){
+  CombinedBias=c(CombinedBias,AllBiasedReg[[i]])
+}
+```
+
+
+
+```{r}
+set.seed(345)
+BandFrame=data.frame(harmo$gieStain[rollmean(AllOtherCount,k=1)>0],BiasOdds)
+names(BandFrame)=c("Stain","BiasOdds")
+g=aov(BiasOdds~Stain,data=BandFrame)
+```
+```{r}
+TestStatistic=c()
+for(k in c(1:10000)){
+  
+    gem=Rle(harmo$gieStain)
+        mere=data.frame(gem@values,gem@lengths)
+        inds=sample(nrow(mere))
+        mere=mere[inds,]
+        gem@values=mere$gem.values
+        gem@lengths=mere$gem.lengths
+        NewHarmo=rep(gem@values,gem@lengths)
+        
+  randFrame=data.frame(NewHarmo[rollmean(AllOtherCount,k=1)>0],BiasOdds)
+  colnames(randFrame)=c("Stain","BiasOdds")
+  ef=(aov(BiasOdds~Stain,data=randFrame))
+  TestStatistic[k]=summary(ef)[[1]][["F value"]][1]
+}
+
+```
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

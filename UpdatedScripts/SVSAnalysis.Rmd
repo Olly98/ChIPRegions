@@ -1,0 +1,2900 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-03-09"
+---
+```{r setup, include=FALSE}
+
+
+knitr::opts_knit$set(root.dir = "Path/To/DataFolder") # rmarkdown will otherwise default to the folder where the script is
+```
+```{r}
+library(ggplot2)
+library(mgcv)
+setwd("/Users/oliverhughes/Downloads/DataFolderForManuscript")
+Models=readRDS("./MACOptimalModelExpSets.rds")
+RepModels=readRDS("./MACRepSetHMMs.rds")
+MACVitRep=readRDS("./RepSetViterbis.rds")
+MACRepPUS=readRDS("./MACUnionsRepSet.rds")
+MACViterbis=readRDS("./MACViterbis.rds")
+Unions=readRDS("./MACUnions.rds")
+RepMotThresh=readRDS("./RepMotThresh.rds")
+ExpMotThresh=readRDS("./ExpMotThresh.rds")
+RepMotGC=readRDS("./RepMotGC.rds")
+ExpMotGC=readRDS("./ExpMotGC.rds")
+
+set.seed(123)
+
+```
+```{r}
+
+
+Names=c("RepMotDel","RepContDel","ExpMotDel","ExpContDel","RepMotAmp","RepContAmp","ExpMotAmp","ExpContAmp","RepMotGC","RepContGC","ExpMotGC","ExpContGC")
+
+ResultFrame=data.frame(Names,c(1:length(Names)),c(1:length(Names)),c(1:length(Names)),c(1:length(Names)))
+
+colnames(ResultFrame)=c("Comparison","Slope","Rsq","P-value","Adjusted P-value")
+
+```
+
+
+
+```{r}
+RepSV=readRDS("/Users/oliverhughes/Downloads/DataFolder/RepSVTestNTenK.rds")
+RepSig=readRDS("/Users/oliverhughes/Downloads/DataFolder/RepSigTestNTenK.rds")
+Keeps=c()
+
+for(i in 1:length(RepSV)){
+   if(!is.list(RepSV[[i]])){
+    next
+   }
+  
+  
+  Chi=RepSV[[i]][["statistic"]]
+ 
+  if(Chi>quantile(na.omit(RepSig[[i]]),0.95)){
+    Keeps[i]=TRUE
+  }else{
+    Keeps[i]=FALSE
+  }
+  if(length(grep("GM12878",names(RepSV)[i]))>0){
+    Keeps[i]=FALSE
+  }
+}
+Keeps[is.na(Keeps)]=FALSE
+
+RepSV2=RepSV[Keeps]
+
+SigProp=length(RepSV2)/(length(RepSV)-length(grep("GM12878",names(RepSV))))
+
+K562SigProp=length(grep("K562",names(RepSV2)))/length(grep("K562",names(RepSV)))
+HepG2SigProp=length(grep("HepG2",names(RepSV2)))/length(grep("HepG2",names(RepSV)))
+
+HepvK562Table=matrix(c(length(grep("K562",names(RepSV2))),length(grep("K562",names(RepSV)))- length(grep("K562",names(RepSV2))),length(grep("HepG2",names(RepSV2))),length(grep("HepG2",names(RepSV)))- length(grep("HepG2",names(RepSV2)))),nrow=2) 
+
+test=chisq.test(HepvK562Table)
+print(test)
+
+```
+```{r}
+
+RepSV=readRDS("/Users/oliverhughes/Downloads/DataFolder/RepSVTestNTenK.rds")
+PropDel=list()
+RepMaxDel=c()
+for(i in 1:length(RepSV)){
+ if(length(RepSV[[i]])<9){
+   next
+ }
+    
+  ThisModel=RepModels[[names(RepSV)[i]]]
+ StateNum=ncol(ThisModel$Rho.matrix)
+  StateTemplate=rep(0,StateNum)
+  Table=RepSV[[i]]$observed+1
+  if(!"het.del"%in%colnames((Table))){
+   next
+ }
+  Table=Table/rowSums(Table)
+  StateTemplate[as.numeric(rownames(Table))]=Table[,"het.del"]
+  PropDel[[i]]=StateTemplate
+  RepMaxDel[i]=max(Table[,2])
+}
+names(PropDel)=names(RepSV)
+```
+```{r}
+#RepSV=readRDS("/Users/oliverhughes/Downloads/DataFolder/RepSVTestNTenK.rds")
+#PropDel=list()
+#RepMaxDel=c()
+#for(i in 1:length(RepSV)){
+#  if(length(RepSV[[i]])<9){
+#    next
+#  }
+    
+ # ThisModel=RepModels[[names(RepSV)[i]]]
+ # StateNum=ncol(ThisModel$Rho.matrix)
+ # StateTemplate=rep(0,StateNum)
+ # Table=RepSV[[i]]$observed+1
+ #  if(!"het.del"%in%colnames((Table))){
+ #  next
+ #}
+ # Table=Table/rowSums(Table)
+ # StateTemplate[as.numeric(rownames(Table))]=Table[,"het.del"]
+ # PropDel[[i]]=StateTemplate
+  #RepMaxDel[i]=max(Table[,2])
+#}
+
+#names(PropDel)=names(RepSV)
+#names(RepMaxDel)=names(RepSV)
+#median(na.omit(RepMaxDel))
+
+#RepTable=data.frame(c("K562","HepG2","GM12878"),c(0,0,0),c(0.095694814,0.1867014,0.0001081000098),c(0,0,0),c(0.0839301,0.02484#619, 0.0009121121))
+#RepMaxAmp=na.omit(RepMaxAmp)
+#RepMaxDel=na.omit(RepMaxDel)
+#RepTable[,2]=c(median(RepMaxAmp[grep("K562",names(RepMaxAmp))]),median(RepMaxAmp[grep("HepG2",names(RepMaxAmp))]),median(RepMaxAmp[grep("GM12878",names(RepMaxAmp))]))
+#RepTable[,4]=c(median(RepMaxDel[grep("K562",names(RepMaxDel))]),median(RepMaxDel[grep("HepG2",names(RepMaxDel))]),median(RepMaxDel[grep("GM12878",names(RepMaxDel))]))
+#colnames(RepTable)=c("CellLine","Amplifications Median %","Amplifications Expected %","Deletions Median %","Deletions Expected %")
+
+
+#ExpTable=data.frame(c("K562","HepG2","GM12878"),c(0,0,0),c(0.08442274,0.1474122, 0.0001617035),c(0,0,0),c(0.0839301,0.07451000016, 0.0009106461))
+#ExpMaxAmp=na.omit(ExpMaxAmp)
+#ExpMaxDel=na.omit(ExpMaxDel)
+#ExpTable[,2]=c(median(ExpMaxAmp[grep("K562",names(ExpMaxAmp))]),median(ExpMaxAmp[grep("HepG2",names(ExpMaxAmp))]),median(ExpMaxAmp[grep("GM12878",names(ExpMaxAmp))]))
+#ExpTable[,4]=c(median(ExpMaxDel[grep("K562",names(ExpMaxDel))]),median(ExpMaxDel[grep("HepG2",names(ExpMaxDel))]),median(ExpMaxDel[grep("GM12878",names(ExpMaxDel))]))
+#colnames(ExpTable)=c("CellLine","Amplifications Median %","Amplifications Expected %","Deletions Median %","Deletions Expected %")
+```
+
+```{r}
+
+ExpSignals=readRDS("/Users/oliverhughes/Downloads/DataFolder/SignalDataexp.rds")
+OneState=c()
+for(i in 1:length(ExpSignals)){
+  if(is.null(nrow(ExpSignals[[i]]))){
+    next
+  }
+ Frame=ExpSignals[[i]]
+  One=c()
+  for(j in 1:ncol(Frame)){
+    One[j]=exp(mean(log(Frame[,j])))
+  }
+  OneState[[i]]=One
+}
+names(OneState)=names(ExpSignals)
+
+```
+```{r}
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepMotThresh)){
+  if(("None"%in%RepMotThresh[[i]])){
+     next
+   }
+
+  if(!names(RepMotThresh)[i]%in%names(RepContrasts)){
+    next
+  }
+    #if(names(RepMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepMotThresh[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(RepMotThresh[[i]]))
+  Sig=as.numeric(unlist(((RepContrasts[names(RepContrasts)==names(RepMotThresh)[i]]))))
+  
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)<2){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  if(sum(Mots==0.001)==length(Mots)){
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+ggplot(TotalRepDiffFrame, aes(x=Sig, y=Diff)) + 
+  geom_point() +
+  geom_ribbon(data = TotalRepDiffFrame, alpha = 0.3,
+              aes(ymin = Lower, ymax = Upper, fill = "confidence interval")) +
+  geom_line(data = TotalRepDiffFrame, aes(y=fit))
+  xlim(-1.5,1.5)
+  
+  
+
+```
+```{r}
+
+
+```
+```{r}
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepMotThresh)){
+
+    if(("None"%in%RepMotThresh[[i]])){
+     next
+   }
+ 
+  
+  if(!names(RepMotThresh)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(RepMotThreshtTest)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepMotThreshtTest[[i]])){
+  #  next
+  #}
+
+  Mots=as.numeric(unlist(RepMotThresh[[i]]))
+  Sig=as.numeric(unlist(((PropDel[names(PropDel)==names(RepMotThresh)[i]]))))
+  
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+
+
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)<2){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  if(sum(Mots==0.001)==length(Mots)){
+    print(i)
+    next
+    
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j][]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+   
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1[1]>Moss2[1]))!=1
+    Sigi[j]=log(Moss1[1]/Moss2[1])
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2[1],Moss1[1]),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+g=summary(fit)
+ResultFrame[1,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+beng=c()
+for(k in 1:10000){  
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepMotThresh)){
+
+    if(("None"%in%RepMotThresh[[i]])){
+     next
+   }
+ 
+  if(!names(RepMotThresh)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(RepMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepMotThresh[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(RepMotThresh[[i]])))
+  Sig=(as.numeric(unlist(((PropDel[names(PropDel)==names(RepMotThresh)[i]])))))
+    MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)<2){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+   if(sum(Mots==0.001)==length(Mots)){
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j][]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+   
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1[1]>Moss2[1]))!=1
+    Sigi[j]=log(Moss1[1]/Moss2[1])
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2[1],Moss1[1]),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[1,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+```
+
+```{r}
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepContrasts)){
+
+ if(("None"%in%RepContrasts[[i]])){
+     next
+   }
+  
+  if(!names(RepContrasts)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(RepContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepContrasts[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(RepContrasts[[i]]))
+  Sig=as.numeric(unlist(((PropDel[names(PropDel)==names(RepContrasts)[i]]))))
+  
+ MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    print(i)
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+
+
+   g=summary(fit)
+  ResultFrame[2,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+ fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+
+for(k in 1:10000){  
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepContrasts)){
+
+ if(("None"%in%RepContrasts[[i]])){
+     next
+   }
+  
+  if(!names(RepContrasts)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(RepContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepContrasts[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(RepContrasts[[i]])))
+  Sig=(as.numeric(unlist(((PropDel[names(PropDel)==names(RepContrasts)[i]])))))
+  
+    MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[2,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+  
+```
+```{r}
+beng=c()
+ExpSV=readRDS("/Users/oliverhughes/Downloads/DataFolder/SVTestNTenK.rds")
+ExpSig=readRDS("/Users/oliverhughes/Downloads/DataFolder/SigTestNTenK.rds")
+Keeps=c()
+
+for(i in 1:length(ExpSV)){
+   if(!is.list(ExpSV[[i]])){
+    next
+   }
+  
+  Chi=ExpSV[[i]][["statistic"]]
+ 
+  if(Chi>quantile(na.omit(ExpSig[[i]]),0.95)){
+    Keeps[i]=TRUE
+  }else{
+    Keeps[i]=FALSE
+  }
+  if(length(grep("GM12878",names(ExpSV)[i]))>0){
+    Keeps[i]=FALSE
+  }
+}
+#Keeps[is.na(Keeps)]=FALSE
+#ExpSV=ExpSV[Keeps]
+
+
+ExpSV2=ExpSV[Keeps]
+
+SigProp=length(ExpSV2)/(length(ExpSV)-length(grep("GM12878",names(ExpSV))))
+
+K562SigProp=length(grep("K562",names(ExpSV2)))/length(grep("K562",names(ExpSV)))
+HepG2SigProp=length(grep("HepG2",names(ExpSV2)))/length(grep("HepG2",names(ExpSV)))
+
+HepvK562Table=matrix(c(length(grep("K562",names(ExpSV2))),length(grep("K562",names(ExpSV)))- length(grep("K562",names(ExpSV2))),length(grep("HepG2",names(ExpSV2))),length(grep("HepG2",names(ExpSV)))- length(grep("HepG2",names(ExpSV2)))),nrow=2) 
+
+test=chisq.test(HepvK562Table)
+print(test)
+
+#ExpSigTr=ExpSig[Keeps]
+#NotGMExpSig=ExpSig[-grep("GM12878",names(ExpSig))]
+#ExpSigHepG2=ExpSig[grep("HepG2",names(ExpSig))]
+#ExpSigK562=ExpSig[grep("K562",names(ExpSig))]
+#ExpSVHepG2=ExpSV[grep("HepG2",names(ExpSV))]
+#ExpSVK562=ExpSV[grep("K562",names(ExpSV))]
+```
+```{r}
+ExpSV=readRDS("/Users/oliverhughes/Downloads/DataFolder/SVTestNTenK.rds")
+PropDel=list()
+ExpMaxDel=c()
+for(i in 1:length(ExpSV)){
+  if(length(ExpSV[[i]])<9){
+    next
+  }
+ThisModel=Models[[names(ExpSV)[i]]]
+  StateNum=ncol(ThisModel$Rho.matrix)
+  StateTemplate=rep(0,StateNum)
+  Table=ExpSV[[i]]$observed+1
+  Table=Table/rowSums(Table)
+  StateTemplate[as.numeric(rownames(Table))]=Table[,"het.del"]
+  PropDel[[i]]=StateTemplate
+  ExpMaxDel[i]=max(Table[,"het.del"])
+}
+names(ExpMaxDel)=names(ExpSV)
+names(PropDel)=names(ExpSV)
+
+
+  
+
+
+
+```
+```{r}
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpMotThresh)){
+
+    if(("None"%in%ExpMotThresh[[i]])){
+     next
+   }
+  
+   if(sum(ExpMotThresh[[i]]==0.001)==length(ExpMotThresh[[i]])){
+    next
+   }
+  
+  if(!names(ExpMotThresh)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(ExpMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpMotThresh[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(ExpMotThresh[[i]]))
+  Sig=as.numeric(unlist(((PropDel[names(PropDel)==names(ExpMotThresh)[i]]))))
+  
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+
+
+    g=summary(fit)
+  ResultFrame[3,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  beng=c()
+  for(k in 1:10000){  
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpMotThresh)){
+
+    if(("None"%in%ExpMotThresh[[i]])){
+     next
+   }
+   if(sum(ExpMotThresh[[i]]==0.001)==length(ExpMotThresh[[i]])){
+    next
+  }
+  
+  if(!names(ExpMotThresh)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(ExpMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpMotThresh[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(ExpMotThresh[[i]])))
+  Sig=(as.numeric(unlist(((PropDel[names(PropDel)==names(ExpMotThresh)[i]])))))
+  
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+ if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[3,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+```
+```{r}
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpContrasts)){
+
+  if((is.null(ExpContrasts[[i]]))){
+     next
+   }
+  
+  
+
+  
+  if(!names(ExpContrasts)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(ExpContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpContrasts[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(ExpContrasts[[i]]))
+  Sig=as.numeric(unlist(((PropDel[names(PropDel)==names(ExpContrasts)[i]]))))
+  
+  
+ MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+
+
+    g=summary(fit)
+   ResultFrame[4,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  
+  for(k in 1:10000){  
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpContrasts)){
+
+  if((is.null(ExpContrasts[[i]]))){
+     next
+   }
+  
+  
+
+  
+  if(!names(ExpContrasts)[i]%in%names(PropDel)){
+    next
+  }
+    #if(names(ExpContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpContrasts[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(ExpContrasts[[i]])))
+  Sig=(as.numeric(unlist(((PropDel[names(PropDel)==names(ExpContrasts)[i]])))))
+  
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[4,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+```
+
+```{r}
+
+
+RepSV=readRDS("/Users/oliverhughes/Downloads/DataFolder/RepSVTestNTenK.rds")
+PropAmp=list()
+RepMaxAmp=c()
+for(i in 1:length(RepSV)){
+  if(length(RepSV[[i]])<9){
+    next
+  }
+
+ ThisModel=RepModels[[names(RepSV)[i]]]
+  StateNum=ncol(ThisModel$Rho.matrix)
+  StateTemplate=rep(0,StateNum)
+  Table=RepSV[[i]]$observed+1
+   if(!"amp"%in%colnames((Table))){
+   next
+ }
+  Table=Table/rowSums(Table)
+  StateTemplate[as.numeric(rownames(Table))]=Table[,"amp"]
+  PropAmp[[i]]=StateTemplate
+  RepMaxAmp[i]=max(Table[,"amp"])
+}
+names(RepMaxAmp)=names(RepSV)
+names(PropAmp)=names(RepSV)
+
+
+
+```
+
+```{r}
+
+CheckMot=c()
+CheckAmp=c()
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+PropUnroll=unlist(PropAmp)
+
+Minimum=unname(PropUnroll[rank(PropUnroll)==5])
+for(i in 1:length(RepMotThresh)){
+
+     if(("None"%in%RepMotThresh[[i]])){
+     next
+   }
+ 
+  
+  if(!names(RepMotThresh)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(RepMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepMotThresh[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(RepMotThresh[[i]]))
+  Sig=as.numeric(unlist(((PropAmp[names(PropAmp)==names(RepMotThresh)[i]]))))
+  Sig[Sig<Minimum]=Minimum
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)<2){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+   if(sum(Mots=0.001)==length(Mots)){
+    next
+  }
+ CheckMot=c(CheckMot,paste(Mots,collapse=" "))
+ CheckAmp=c(CheckAmp,paste(Sig,collapse=" "))
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]][1]
+    Moss2=Sig[Mots==NPairs$Var2[j]][1]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    
+    
+      Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+ g=summary(fit)
+  
+   ResultFrame[5,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+   
+PropUnroll=unlist(PropAmp)
+
+Minimum=unname(PropUnroll[rank(PropUnroll)==5])
+  for(k in 1:10000){
+  CheckMot=c()
+CheckAmp=c()
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepMotThresh)){
+
+     if(("None"%in%RepMotThresh[[i]])){
+     next
+   }
+  
+  
+  if(!names(RepMotThresh)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(RepMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepMotThresh[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(RepMotThresh[[i]])))
+  Sig=(as.numeric(unlist(((PropAmp[names(PropAmp)==names(RepMotThresh)[i]])))))
+  Sig[Sig<Minimum]=Minimum
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)<2){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  if(sum(Mots==0.001)==length(Mots)){
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+ CheckMot=c(CheckMot,paste(Mots,collapse=" "))
+ CheckAmp=c(CheckAmp,paste(Sig,collapse=" "))
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]][1]
+    Moss2=Sig[Mots==NPairs$Var2[j]][1]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    
+    
+      Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[5,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+```
+```{r}
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+PropUnroll=unlist(PropAmp)
+
+Minimum=unname(PropUnroll[rank(PropUnroll)==5])
+for(i in 1:length(RepContrasts)){
+
+ if(("None"%in%RepContrasts[[i]])){
+     next
+   }
+  
+  
+  if(!names(RepContrasts)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(RepContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepContrasts[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(RepContrasts[[i]]))
+  Sig=as.numeric(unlist(((PropAmp[names(PropAmp)==names(RepContrasts)[i]]))))
+  Sig[Sig<Minimum]=Minimum
+ MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+
+
+   g=summary(fit)
+    ResultFrame[6,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+PropUnroll=unlist(PropAmp)
+
+Minimum=unname(PropUnroll[rank(PropUnroll)==5])
+  for(k in 1:10000){
+  CheckMot=c()
+CheckAmp=c()
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepContrasts)){
+
+ if(("None"%in%RepContrasts[[i]])){
+     next
+   }
+  
+  
+  if(!names(RepContrasts)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(RepContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepContrasts[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(RepContrasts[[i]])))
+  Sig=(as.numeric(unlist(((PropAmp[names(PropAmp)==names(RepContrasts)[i]])))))
+  Sig[Sig<Minimum]=Minimum
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+ if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[6,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+
+
+```
+```{r}
+ExpSV=readRDS("/Users/oliverhughes/Downloads/DataFolder/SVTestNTenK.rds")
+PropAmp=list()
+ExpMaxAmp=c()
+for(i in 1:length(ExpSV)){
+  if(length(ExpSV[[i]])<9){
+    next
+  }
+ThisModel=Models[[names(ExpSV)[i]]]
+  StateNum=ncol(ThisModel$Rho.matrix)
+  StateTemplate=rep(0,StateNum)
+  Table=ExpSV[[i]]$observed+1
+   if(!"amp"%in%colnames((Table))){
+   next
+ }
+  Table=Table/rowSums(Table)
+  StateTemplate[as.numeric(rownames(Table))]=Table[,"amp"]
+  PropAmp[[i]]=StateTemplate
+  ExpMaxAmp[i]=max(Table[,"amp"])
+}
+names(ExpMaxAmp)=names(ExpSV)
+names(PropAmp)=names(ExpSV)
+
+
+
+```
+```{r}
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+
+for(i in 1:length(ExpMotThresh)){
+
+     if(("None"%in%ExpMotThresh[[i]])){
+     next
+   }
+   if(sum(ExpMotThresh[[i]]==0.001)==length(ExpMotThresh[[i]])){
+    next
+  }
+  
+  if(!names(ExpMotThresh)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(ExpMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpMotThresh[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(ExpMotThresh[[i]]))
+  Sig=as.numeric(unlist(((PropAmp[names(PropAmp)==names(ExpMotThresh)[i]]))))
+  
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+
+
+
+    g=summary(fit)
+     ResultFrame[7,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  for(k in 1:10000){
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpMotThresh)){
+
+     if(("None"%in%ExpMotThresh[[i]])){
+     next
+   }
+   if(sum(ExpMotThresh[[i]]==0.001)==length(ExpMotThresh[[i]])){
+    next
+  }
+  
+  if(!names(ExpMotThresh)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(ExpMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpMotThresh[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(ExpMotThresh[[i]])))
+  Sig=(as.numeric(unlist(((PropAmp[names(PropAmp)==names(ExpMotThresh)[i]])))))
+  
+ MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[1,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+
+
+```
+```{r}
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpContrasts)){
+
+  if((is.null(ExpContrasts[[i]]))){
+     next
+   }
+  
+  
+  if(!names(ExpContrasts)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(ExpContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpContrasts[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(ExpContrasts[[i]]))
+  Sig=as.numeric(unlist(((PropAmp[names(PropAmp)==names(ExpContrasts)[i]]))))
+  
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+ if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+
+g=summary(fit)
+     ResultFrame[8,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  for(k in 1:10000){
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpContrasts)){
+
+  if((is.null(ExpContrasts[[i]]))){
+     next
+   }
+  
+  
+  if(!names(ExpContrasts)[i]%in%names(PropAmp)){
+    next
+  }
+    #if(names(ExpContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpContrasts[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(ExpContrasts[[i]])))
+  Sig=as.numeric(unlist(((PropAmp[names(PropAmp)==names(ExpContrasts)[i]]))))
+ MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+ if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[8,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+
+```
+```{r}
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepMotThresh)){
+
+    if(("None"%in%RepMotThresh[[i]])){
+     next
+   }
+ 
+  if(!names(RepMotThresh)[i]%in%names(RepMotGC)){
+    next
+  }
+    #if(names(RepMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepMotThresh[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(RepMotThresh[[i]]))
+  Sig=as.numeric(unlist(((RepMotGC[names(RepMotGC)==names(RepMotThresh)[i]]))))
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)<2){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  } 
+   if(sum(Mots==0.001)==length(Mots)){
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+   
+g=summary(fit)
+  ResultFrame[9,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  for(k in 1:10000){
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepMotThresh)){
+
+    if(("None"%in%RepMotThresh[[i]])){
+     next
+   }
+  
+  
+  if(!names(RepMotThresh)[i]%in%names(RepMotGC)){
+    next
+  }
+    #if(names(RepMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepMotThresh[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(RepMotThresh[[i]])))
+  Sig=(as.numeric(unlist(((RepMotGC[names(RepMotGC)==names(RepMotThresh)[i]])))))
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)>2){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  if(sum(Mots==0.001)==length(Mots)){
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[9,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+
+```
+```{r}
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepContrasts)){
+
+   if(("None"%in%RepContrasts[[i]])){
+     next
+   }
+  
+  if(!names(RepContrasts)[i]%in%names(RepMotGC)){
+    next
+  }
+    #if(names(RepContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepContrasts[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(RepContrasts[[i]]))
+  Sig=as.numeric(unlist(((RepMotGC[names(RepMotGC)==names(RepContrasts)[i]]))))
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+
+ g=summary(fit)
+  ResultFrame[10,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  for(k in 1:10000){
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(RepContrasts)){
+
+   if(("None"%in%RepContrasts[[i]])){
+     next
+   }
+  
+  if(!names(RepContrasts)[i]%in%names(RepMotGC)){
+    next
+  }
+    #if(names(RepContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(RepContrasts[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(RepContrasts[[i]])))
+  Sig=(as.numeric(unlist(((RepMotGC[names(RepMotGC)==names(RepContrasts)[i]])))))
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[10,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+```
+```{r}
+
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpMotThresh)){
+
+  if(("None"%in%ExpMotThresh[[i]])){
+     next
+   }
+  
+  if(sum(ExpMotThresh[[i]]==0.001)==length(ExpMotThresh[[i]])){
+    next
+  }
+  if(!names(ExpMotThresh)[i]%in%names(ExpMotGC)){
+    next
+  }
+    #if(names(ExpMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpMotThresh[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(ExpMotThresh[[i]]))
+  Sig=as.numeric(unlist(((ExpMotGC[names(ExpMotGC)==names(ExpMotThresh)[i]]))))
+  MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+
+  
+   g=summary(fit)
+  ResultFrame[11,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  for(k in 1:10000){
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpMotThresh)){
+
+  if(("None"%in%ExpMotThresh[[i]])){
+     next
+   }
+   if(sum(ExpMotThresh[[i]]==0.001)==length(ExpMotThresh[[i]])){
+    next
+  }
+  
+  if(!names(ExpMotThresh)[i]%in%names(ExpMotGC)){
+    next
+  }
+    #if(names(ExpMotThresh)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpMotThresh[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(ExpMotThresh[[i]])))
+  Sig=(as.numeric(unlist(((ExpMotGC[names(ExpMotGC)==names(ExpMotThresh)[i]])))))
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[11,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+
+```
+```{r}
+
+
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpContrasts)){
+
+  if((is.null(ExpContrasts[[i]]))){
+     next
+   }
+  
+  
+  if(!names(ExpContrasts)[i]%in%names(ExpMotGC)){
+    next
+  }
+    #if(names(ExpContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpContrasts[[i]])){
+  #  next
+  #}
+  Mots=as.numeric(unlist(ExpContrasts[[i]]))
+  Sig=as.numeric(unlist(((ExpMotGC[names(ExpMotGC)==names(ExpContrasts)[i]]))))
+ MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+  if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+   
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- lm(Diff ~ Sig, data = TotalRepDiffFrame)
+pred <- predict(fit,TotalRepDiffFrame, type = "response", se=TRUE)
+predframe=data.frame(pred$fit,pred$fit-pred$se.fit,pred$fit+pred$se.fit)
+TotalRepDiffFrame$fit=pred$fit
+TotalRepDiffFrame$Upper=pred$fit+pred$se.fit
+TotalRepDiffFrame$Lower=pred$fit-pred$se.fit
+names(predframe)=c("fit","upper","lower")
+
+ggplot(TotalRepDiffFrame, aes(x=Sig, y=Diff)) + 
+  geom_point() +
+  geom_ribbon(data = TotalRepDiffFrame, alpha = 0.3,
+              aes(ymin = Lower, ymax = Upper, fill = "confidence interval")) +
+  geom_line(data = TotalRepDiffFrame, aes(y=fit))
+  xlim(-1.5,1.5)
+
+  
+   g=summary(fit)
+    ResultFrame[12,-c(1,5)]=c(g$coefficients[2],g$r.squared,g$coefficients[8])
+
+  for(k in 1:10000){
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+Trumps=c()
+Probs=c()
+Totals=c()
+MotDiff=c()
+SigDiff=c()
+for(i in 1:length(ExpContrasts)){
+
+  if((is.null(ExpContrasts[[i]]))){
+     next
+   }
+  
+  
+  if(!names(ExpContrasts)[i]%in%names(ExpMotGC)){
+    next
+  }
+    #if(names(ExpContrasts)[i]%in%Skips){
+  #next
+ # }
+  #if(is.null(ExpContrasts[[i]])){
+  #  next
+  #}
+  Mots=(as.numeric(unlist(ExpContrasts[[i]])))
+  Sig=(as.numeric(unlist(((ExpMotGC[names(ExpMotGC)==names(ExpContrasts)[i]])))))
+MotNA=which(is.na(Mots))
+  SigNA=which(is.na(Sig))
+   if(length(MotNA)+length(SigNA)>0){
+  Mots=Mots[-c(MotNA,SigNA)]
+  Sig=Sig[-c(MotNA,SigNA)]
+  }
+   if(sum(is.na(Mots))==length(Mots)){
+    next
+ }
+ 
+  if(length(Sig)==0){
+    next
+  }
+  if(length(Mots)==0){
+    next
+  }
+  if(sum(is.na(Sig))>0){
+    next
+  }
+  if(length(Mots)!=length(Sig)){
+    print("Error, Sig and Mot Have Different Lengths")
+    next
+  }
+  
+  Sig[Sig==0]=min(Sig[Sig!=0])/10
+  Mots=sample(Mots)
+  Sig=sample(Sig)
+  NPairs=expand.grid(Mots,Mots)
+  NPairs$Raysh=abs(log2(NPairs$Var1/NPairs$Var2))
+ 
+  Compo=c()
+  Tracker=c()
+  Diff=c()
+  Sigi=c()
+  for(j in 1:nrow(NPairs)){
+    if(NPairs$Var1[j]==NPairs$Var2[j]){
+      next
+    }
+    
+    Moss1=Sig[Mots==NPairs$Var1[j]]
+    Moss2=Sig[Mots==NPairs$Var2[j]]
+    if(paste(c(Moss1,Moss2),collapse=" ")%in%Tracker){
+      next
+    }
+   
+    Compo[j]=((NPairs$Var1[j]>NPairs$Var2[j])+(Moss1>Moss2))!=1
+    Sigi[j]=log(Moss1/Moss2)
+    Diff[j]=(log(NPairs$Var1[j]/NPairs$Var2[j]))
+    Tracker=c(Tracker,paste(c(Moss2,Moss1),collapse=" "))
+  }
+  SigDiff[i]=paste(na.omit(Sigi),collapse=" ")
+  Trumps[i]=paste(na.omit(Compo),collapse=" ")
+  Probs[i]=paste(na.omit(Compo),collapse=" ")
+  MotDiff[i]=paste(na.omit(Diff),collapse=" ")
+  Totals[i]=length(na.omit(Compo))
+  
+}
+
+ExtrDiffFrame=data.frame(as.logical(unlist(strsplit(Probs,split=" "))),as.numeric(unlist(strsplit(MotDiff,split=" "))),as.numeric(unlist(strsplit(SigDiff,split=" "))))
+names(ExtrDiffFrame)=c("Hit","Diff","Sig")
+
+TotalRepDiffFrame=ExtrDiffFrame
+
+TotalRepDiffFrame$Hit=as.numeric(TotalRepDiffFrame$Hit)
+TotalRepDiffFrame$Diff=(TotalRepDiffFrame$Diff)
+TotalRepDiffFrame=na.omit(TotalRepDiffFrame)
+  #geom_point(position=position_jitter(1,3), pch=21, fill="#FF0000AA") +
+
+
+fit <- summary(lm(Diff ~ Sig, data = TotalRepDiffFrame))
+beng[k]=fit$coefficients[6]
+}
+  ResultFrame[12,4]=sum(abs(beng)>abs(g$coefficients[6]))/length(beng)
+  
+
+```
